@@ -161,9 +161,7 @@ public class MyResultProcessor {
             return new ProjectingConverter(type, factory, conversionService, entityManager);
         }
 
-        private Object getInstance(Object obj, String propertyName) {
-            Map<String, Object> instances = new HashMap<>();
-            instances.put(obj.getClass().getName(), obj);
+        private Object getInstance(Object obj, String propertyName, Map<String, Object> instances) {
             if (propertyName.contains(".")) {
                 String[] fields = propertyName.split("\\.");
                 Object ret = obj;
@@ -216,11 +214,13 @@ public class MyResultProcessor {
 
             try {
                 Object ret = constructor.getConstructor().newInstance();
+                Map<String, Object> instances = new HashMap<>();
+                instances.put(ret.getClass().getName(), ret);
                 CustomDefaultProjectionInformation information = (CustomDefaultProjectionInformation) factory.getProjectionInformation(targetType);
                 Map<String, PropertyDescriptor> mapped = type.getMappedProperties();
                 for (String key : src.keySet()) {
                     PropertyDescriptor prop = mapped.get(key);
-                    Object instance = getInstance(ret, prop.getName());
+                    Object instance = getInstance(ret, prop.getName(), instances);
                     prop.getWriteMethod().invoke(instance, src.get(key));
                 }
 

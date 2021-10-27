@@ -363,12 +363,12 @@ public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializab
     
     private static boolean hasAlias(From<?, ?> from, String alias){
       for (Join<?, ?> join : from.getJoins()) {
-        if(alias.equals(join.getAlias())){
+        if(alias.equals(join.getAlias()) || hasAlias(join, alias)){
           return true;
         }
-        return hasAlias(join, alias);
       }
-      return false;
+      
+      return alias.equals(from.getAlias());
     }
 
     private static boolean isAlreadyFetched(From<?, ?> from, String attribute) {
