@@ -16,16 +16,14 @@
 package th.co.geniustree.springdata.jpa.repository.support;
 
 import org.springframework.data.jpa.repository.EntityGraph;
-import org.springframework.data.jpa.repository.query.Jpa21Utils;
 import org.springframework.data.jpa.repository.query.JpaEntityGraph;
 import org.springframework.data.jpa.repository.support.CrudMethodMetadata;
 import org.springframework.data.jpa.repository.support.JpaEntityInformation;
-import org.springframework.data.jpa.repository.support.MutableQueryHints;
 import org.springframework.data.jpa.repository.support.QueryHints;
 import org.springframework.data.util.Optionals;
 import org.springframework.util.Assert;
 
-import javax.persistence.EntityManager;
+import jakarta.persistence.EntityManager;
 import java.util.*;
 import java.util.function.BiConsumer;
 
@@ -45,16 +43,18 @@ class DefaultQueryHints implements QueryHints {
 	private final boolean forCounts;
 
 	/**
-	 * Creates a new {@link DefaultQueryHints} instance for the given {@link JpaEntityInformation},
-	 * {@link CrudMethodMetadata}, {@link EntityManager} and whether to include fetch graphs.
+	 * Creates a new {@link DefaultQueryHints} instance for the given
+	 * {@link JpaEntityInformation},
+	 * {@link CrudMethodMetadata}, {@link EntityManager} and whether to include
+	 * fetch graphs.
 	 *
-	 * @param information must not be {@literal null}.
-	 * @param metadata must not be {@literal null}.
+	 * @param information   must not be {@literal null}.
+	 * @param metadata      must not be {@literal null}.
 	 * @param entityManager must not be {@literal null}.
 	 * @param forCounts
 	 */
 	private DefaultQueryHints(JpaEntityInformation<?, ?> information, CrudMethodMetadata metadata,
-                              Optional<EntityManager> entityManager, boolean forCounts) {
+			Optional<EntityManager> entityManager, boolean forCounts) {
 
 		this.information = information;
 		this.metadata = metadata;
@@ -63,11 +63,12 @@ class DefaultQueryHints implements QueryHints {
 	}
 
 	/**
-	 * Creates a new {@link QueryHints} instance for the given {@link JpaEntityInformation}, {@link CrudMethodMetadata}
+	 * Creates a new {@link QueryHints} instance for the given
+	 * {@link JpaEntityInformation}, {@link CrudMethodMetadata}
 	 * and {@link EntityManager}.
 	 *
 	 * @param information must not be {@literal null}.
-	 * @param metadata must not be {@literal null}.
+	 * @param metadata    must not be {@literal null}.
 	 * @return
 	 */
 	public static QueryHints of(JpaEntityInformation<?, ?> information, CrudMethodMetadata metadata) {
@@ -80,7 +81,9 @@ class DefaultQueryHints implements QueryHints {
 
 	/*
 	 * (non-Javadoc)
-	 * @see org.springframework.data.jpa.repository.support.QueryHints#withFetchGraphs()
+	 *
+	 * @see
+	 * org.springframework.data.jpa.repository.support.QueryHints#withFetchGraphs()
 	 */
 	@Override
 	public QueryHints withFetchGraphs(EntityManager em) {
@@ -89,6 +92,7 @@ class DefaultQueryHints implements QueryHints {
 
 	/*
 	 * (non-Javadoc)
+	 *
 	 * @see org.springframework.data.jpa.repository.support.QueryHints#forCounts()
 	 */
 	@Override
@@ -98,7 +102,10 @@ class DefaultQueryHints implements QueryHints {
 
 	/*
 	 * (non-Javadoc)
-	 * @see org.springframework.data.jpa.repository.support.QueryHints#forEach(java.util.function.BiConsumer)
+	 *
+	 * @see
+	 * org.springframework.data.jpa.repository.support.QueryHints#forEach(java.util.
+	 * function.BiConsumer)
 	 */
 	@Override
 	public void forEach(BiConsumer<String, Object> action) {
@@ -109,11 +116,33 @@ class DefaultQueryHints implements QueryHints {
 		return QueryHints.from(forCounts ? metadata.getQueryHintsForCount() : metadata.getQueryHints(), getFetchGraphs());
 	}
 
-	private org.springframework.data.jpa.repository.support.QueryHints getFetchGraphs() {
+	private QueryHints getFetchGraphs() {
 		return Optionals
 				.mapIfAllPresent(entityManager, metadata.getEntityGraph(),
-						(em, graph) -> Jpa21Utils.getFetchGraphHint(em, getEntityGraph(graph), information.getJavaType()))
-				.orElse(new MutableQueryHints());
+						(em, graph) -> {
+							JpaEntityGraph jpaEntityGraph = getEntityGraph(graph);
+							jakarta.persistence.EntityGraph<?> entityGraph = em.createEntityGraph(information.getJavaType());
+							String hintName = jpaEntityGraph.getType() == EntityGraph.EntityGraphType.FETCH
+									? "jakarta.persistence.fetchgraph"
+									: "jakarta.persistence.loadgraph";
+							return (QueryHints) new QueryHints() {
+								@Override
+								public QueryHints withFetchGraphs(EntityManager em) {
+									return this;
+								}
+
+								@Override
+								public QueryHints forCounts() {
+									return QueryHints.NoHints.INSTANCE;
+								}
+
+								@Override
+								public void forEach(BiConsumer<String, Object> action) {
+									action.accept(hintName, entityGraph);
+								}
+							};
+						})
+				.orElse(QueryHints.NoHints.INSTANCE);
 	}
 
 	private JpaEntityGraph getEntityGraph(EntityGraph entityGraph) {

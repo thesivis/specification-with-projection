@@ -5,8 +5,8 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
-import javax.persistence.Tuple;
-import javax.persistence.TupleElement;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.TupleElement;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -32,7 +32,9 @@ public class TupleConverter implements Converter<Object, Object> {
 
     /*
      * (non-Javadoc)
-     * @see org.springframework.core.convert.converter.Converter#convert(java.lang.Object)
+     * 
+     * @see org.springframework.core.convert.converter.Converter#convert(java.lang.
+     * Object)
      */
     @Override
     public Object convert(Object source) {
@@ -118,7 +120,7 @@ public class TupleConverter implements Converter<Object, Object> {
          *
          * @param key the key for which to get the value from the map.
          * @return the value of the backing {@link Tuple} for that key or
-         * {@code null}.
+         *         {@code null}.
          */
         @Override
         @Nullable
@@ -141,7 +143,8 @@ public class TupleConverter implements Converter<Object, Object> {
                     if (nHash.size() > 0) {
                         return nHash;
                     }
-                    Optional<String> hKey = type.getInputProperties().stream().filter(p -> p.endsWith("." + key)).findFirst();
+                    Optional<String> hKey = type.getInputProperties().stream().filter(p -> p.endsWith("." + key))
+                            .findFirst();
                     if (hKey.isPresent()) {
                         sKey = hKey.get();
                     }
@@ -153,7 +156,8 @@ public class TupleConverter implements Converter<Object, Object> {
                     fp = AnnotationUtils.findAnnotation(prop.getReadMethod(), FieldProperty.class);
                 } else {
                     try {
-                        fp = AnnotationUtils.findAnnotation(type.getReturnedType().getDeclaredField(prop.getName()), FieldProperty.class);
+                        fp = AnnotationUtils.findAnnotation(type.getReturnedType().getDeclaredField(prop.getName()),
+                                FieldProperty.class);
                     } catch (Exception ex) {
                         Logger.getLogger(TupleConverter.class.getName()).log(Level.WARNING, "Field not found!");
                     }
@@ -166,7 +170,12 @@ public class TupleConverter implements Converter<Object, Object> {
                 if (obj != null) {
                     if (obj instanceof GregorianCalendar) {
                         if (prop == null) {
-                            prop = props.stream().filter(f -> f.getName().equals(key) || (AnnotationUtils.findAnnotation(f.getReadMethod(), FieldProperty.class) != null ? (AnnotationUtils.findAnnotation(f.getReadMethod(), FieldProperty.class).path().equals(key)) : false)).findFirst().get();
+                            prop = props.stream().filter(f -> f.getName().equals(key)
+                                    || (AnnotationUtils.findAnnotation(f.getReadMethod(), FieldProperty.class) != null
+                                            ? (AnnotationUtils.findAnnotation(f.getReadMethod(), FieldProperty.class)
+                                                    .path().equals(key))
+                                            : false))
+                                    .findFirst().get();
                         }
                         if (prop != null && prop.getReadMethod() != null) {
                             if (prop.getReadMethod().getReturnType().equals(Date.class)) {
@@ -227,7 +236,7 @@ public class TupleConverter implements Converter<Object, Object> {
 
         @Override
         public boolean containsKey(Object key) {
-            return super.containsKey(key); //To change body of generated methods, choose Tools | Templates.
+            return super.containsKey(key); // To change body of generated methods, choose Tools | Templates.
         }
 
         @Override
@@ -253,7 +262,7 @@ public class TupleConverter implements Converter<Object, Object> {
                 return null;
             }
 
-            return super.get(key); //To change body of generated methods, choose Tools | Templates.
+            return super.get(key); // To change body of generated methods, choose Tools | Templates.
         }
 
     }

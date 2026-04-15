@@ -1,6 +1,6 @@
 package th.co.geniustree.springdata.jpa.domain;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
@@ -110,8 +110,10 @@ public class Document implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
         Document document = (Document) o;
         return Objects.equals(id, document.id);
     }

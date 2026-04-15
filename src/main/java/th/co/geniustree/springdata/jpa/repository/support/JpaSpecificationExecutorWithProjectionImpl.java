@@ -20,17 +20,17 @@ import org.springframework.data.repository.query.MyResultProcessor;
 import org.springframework.data.repository.query.ReturnTypeWarpper;
 import org.springframework.data.repository.query.ReturnedType;
 import org.springframework.data.repository.query.TupleConverter;
-import org.springframework.data.repository.support.PageableExecutionUtils;
+import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import th.co.geniustree.springdata.jpa.repository.JpaSpecificationExecutorWithProjection;
 
-import javax.persistence.*;
-import javax.persistence.criteria.*;
-import javax.persistence.metamodel.Attribute;
-import javax.persistence.metamodel.Bindable;
-import javax.persistence.metamodel.ManagedType;
-import javax.persistence.metamodel.PluralAttribute;
+import jakarta.persistence.*;
+import jakarta.persistence.criteria.*;
+import jakarta.persistence.metamodel.Attribute;
+import jakarta.persistence.metamodel.Bindable;
+import jakarta.persistence.metamodel.ManagedType;
+import jakarta.persistence.metamodel.PluralAttribute;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
@@ -40,13 +40,14 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static javax.persistence.metamodel.Attribute.PersistentAttributeType.*;
+import static jakarta.persistence.metamodel.Attribute.PersistentAttributeType.*;
 import th.co.geniustree.springdata.jpa.annotation.FieldProperty;
 
 /**
  * Created by pramoth on 9/29/2016 AD.
  */
-public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializable> extends SimpleJpaRepository<T, ID> implements JpaSpecificationExecutorWithProjection<T, ID> {
+public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializable> extends SimpleJpaRepository<T, ID>
+        implements JpaSpecificationExecutorWithProjection<T, ID> {
 
     private static final Logger log = LoggerFactory.getLogger(JpaSpecificationExecutorWithProjectionImpl.class);
     private static final Map<Attribute.PersistentAttributeType, Class<? extends Annotation>> ASSOCIATION_TYPES;
@@ -67,7 +68,8 @@ public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializab
 
     private final JpaEntityInformation entityInformation;
 
-    public JpaSpecificationExecutorWithProjectionImpl(JpaEntityInformation entityInformation, EntityManager entityManager) {
+    public JpaSpecificationExecutorWithProjectionImpl(JpaEntityInformation entityInformation,
+            EntityManager entityManager) {
         super(entityInformation, entityManager);
         this.entityManager = entityManager;
         this.entityInformation = entityInformation;
@@ -87,7 +89,8 @@ public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializab
                 }
             }
             if (!hasCollection) {
-                final ReturnTypeWarpper returnedType = ReturnTypeWarpper.of(projectionType, getDomainClass(), projectionFactory);
+                final ReturnTypeWarpper returnedType = ReturnTypeWarpper.of(projectionType, getDomainClass(),
+                        projectionFactory);
 
                 CriteriaBuilder builder = this.entityManager.getCriteriaBuilder();
                 CriteriaQuery<Tuple> q = builder.createQuery(Tuple.class);
@@ -103,8 +106,10 @@ public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializab
                 final TypedQuery<Tuple> query = this.applyRepositoryMethodMetadata(this.entityManager.createQuery(q));
 
                 try {
-                    final MyResultProcessor resultProcessor = new MyResultProcessor(projectionFactory, returnedType, entityManager);
-                    final R singleResult = resultProcessor.processResult(query.getSingleResult(), new TupleConverter(returnedType));
+                    final MyResultProcessor resultProcessor = new MyResultProcessor(projectionFactory, returnedType,
+                            entityManager);
+                    final R singleResult = resultProcessor.processResult(query.getSingleResult(),
+                            new TupleConverter(returnedType));
                     return Optional.ofNullable(singleResult);
                 } catch (NoResultException e) {
                     return Optional.empty();
@@ -120,11 +125,14 @@ public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializab
 
     @Override
     public <R> Optional<R> findOne(Specification<T> spec, Class<R> projectionType) {
-        final ReturnTypeWarpper returnedType = ReturnTypeWarpper.of(projectionType, getDomainClass(), projectionFactory);
+        final ReturnTypeWarpper returnedType = ReturnTypeWarpper.of(projectionType, getDomainClass(),
+                projectionFactory);
         final TypedQuery<Tuple> query = getTupleQuery(spec, Sort.unsorted(), returnedType);
         try {
-            final MyResultProcessor resultProcessor = new MyResultProcessor(projectionFactory, returnedType, entityManager);
-            final R singleResult = resultProcessor.processResult(query.getSingleResult(), new TupleConverter(returnedType));
+            final MyResultProcessor resultProcessor = new MyResultProcessor(projectionFactory, returnedType,
+                    entityManager);
+            final R singleResult = resultProcessor.processResult(query.getSingleResult(),
+                    new TupleConverter(returnedType));
             return Optional.ofNullable(singleResult);
         } catch (NoResultException e) {
             return Optional.empty();
@@ -133,15 +141,20 @@ public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializab
 
     @Override
     public <R> Page<R> findAll(Specification<T> spec, Class<R> projectionType, Pageable pageable) {
-        final ReturnTypeWarpper returnedType = ReturnTypeWarpper.of(projectionType, getDomainClass(), projectionFactory);
-        final TypedQuery<Tuple> query = getTupleQuery(spec, pageable.getSort() != null && pageable.getSort().isSorted() ? pageable.getSort() : Sort.unsorted(), returnedType);
+        final ReturnTypeWarpper returnedType = ReturnTypeWarpper.of(projectionType, getDomainClass(),
+                projectionFactory);
+        final TypedQuery<Tuple> query = getTupleQuery(spec,
+                pageable.getSort() != null && pageable.getSort().isSorted() ? pageable.getSort() : Sort.unsorted(),
+                returnedType);
         final MyResultProcessor resultProcessor = new MyResultProcessor(projectionFactory, returnedType, entityManager);
         if (pageable.isPaged()) {
             query.setFirstResult((int) pageable.getOffset());
             query.setMaxResults(pageable.getPageSize());
         }
-        final List<R> resultList = resultProcessor.processResult(query.getResultList(), new TupleConverter(returnedType));
-        final Page<R> page = PageableExecutionUtils.getPage(resultList, pageable, () -> executeCountQuery(this.getCountQuery(spec, getDomainClass())));
+        final List<R> resultList = resultProcessor.processResult(query.getResultList(),
+                new TupleConverter(returnedType));
+        final Page<R> page = PageableExecutionUtils.getPage(resultList, pageable,
+                () -> executeCountQuery(this.getCountQuery(spec, getDomainClass())));
         return pageable.isUnpaged() ? new PageImpl(resultList) : page;
     }
 
@@ -159,18 +172,20 @@ public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializab
     }
 
     @Override
-    public <R> Page<R> findAll(Specification<T> spec, Class<R> projectionType, String namedEntityGraph, org.springframework.data.jpa.repository.EntityGraph.EntityGraphType type, Pageable pageable) {
+    public <R> Page<R> findAll(Specification<T> spec, Class<R> projectionType, String namedEntityGraph,
+            org.springframework.data.jpa.repository.EntityGraph.EntityGraphType type, Pageable pageable) {
         return findAll(spec, projectionType, pageable);
     }
 
     @Override
-    public <R> Page<R> findAll(Specification<T> spec, Class<R> projectionType, JpaEntityGraph dynamicEntityGraph, Pageable pageable) {
+    public <R> Page<R> findAll(Specification<T> spec, Class<R> projectionType, JpaEntityGraph dynamicEntityGraph,
+            Pageable pageable) {
         return findAll(spec, projectionType, pageable);
     }
 
     protected TypedQuery<Tuple> getTupleQuery(@Nullable Specification spec, Sort sort, ReturnTypeWarpper returnedType) {
         if (!returnedType.needsCustomConstruction()) {
-            return getQuery(spec, sort);
+            return (TypedQuery<Tuple>) (TypedQuery<?>) getQuery(spec, getDomainClass(), sort);
         }
         CriteriaBuilder builder = this.entityManager.getCriteriaBuilder();
         CriteriaQuery<Tuple> query = builder.createQuery(Tuple.class);
@@ -198,12 +213,14 @@ public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializab
         return this.applyRepositoryMethodMetadata(this.entityManager.createQuery(query));
     }
 
-    public static void configQuery(CriteriaBuilder builder, CriteriaQuery<Tuple> query, From root, ReturnTypeWarpper returnedType, Class from) {
+    public static void configQuery(CriteriaBuilder builder, CriteriaQuery<Tuple> query, From root,
+            ReturnTypeWarpper returnedType, Class from) {
         Map<String, PropertyDescriptor> mapProps = null;
         boolean isInterface = returnedType.getReturnedType().isInterface();
 
         if (isInterface) {
-            mapProps = returnedType.getInputPropertiesDescritors().stream().collect(Collectors.toMap(PropertyDescriptor::getName, Function.identity()));
+            mapProps = returnedType.getInputPropertiesDescritors().stream()
+                    .collect(Collectors.toMap(PropertyDescriptor::getName, Function.identity()));
         }
 
         List<Selection<?>> selections = new ArrayList<>();
@@ -273,7 +290,8 @@ public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializab
         return property.hasNext() ? toExpressionRecursively(result, property.next()) : result;
     }
 
-    static <T> Expression<T> toExpressionRecursively(From<?, ?> root, From<?, ?> from, PropertyPath property, boolean isForSelection) {
+    static <T> Expression<T> toExpressionRecursively(From<?, ?> root, From<?, ?> from, PropertyPath property,
+            boolean isForSelection) {
 
         Bindable<?> propertyPathModel;
         Bindable<?> model = from.getModel();
@@ -282,8 +300,9 @@ public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializab
         if (model instanceof ManagedType) {
 
             /*
-             *  Required to keep support for EclipseLink 2.4.x. TODO: Remove once we drop that (probably Dijkstra M1)
-             *  See: https://bugs.eclipse.org/bugs/show_bug.cgi?id=413892
+             * Required to keep support for EclipseLink 2.4.x. TODO: Remove once we drop
+             * that (probably Dijkstra M1)
+             * See: https://bugs.eclipse.org/bugs/show_bug.cgi?id=413892
              */
             propertyPathModel = (Bindable<?>) ((ManagedType<?>) model).getAttribute(segment);
         } else {
@@ -293,7 +312,8 @@ public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializab
         if (requiresJoin(propertyPathModel, model instanceof PluralAttribute, !property.hasNext(), isForSelection)
                 && !isAlreadyFetched(from, segment)) {
             Join<?, ?> join = getOrCreateJoin(root, from, segment);
-            return (Expression<T>) (property.hasNext() ? toExpressionRecursively(root, join, property.next(), isForSelection)
+            return (Expression<T>) (property.hasNext()
+                    ? toExpressionRecursively(root, join, property.next(), isForSelection)
                     : join);
         } else {
             Path<Object> path = from.get(segment);
@@ -318,14 +338,16 @@ public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializab
             return false;
         }
 
-        // if this path is part of the select list we need to generate an explicit outer join in order to prevent Hibernate
+        // if this path is part of the select list we need to generate an explicit outer
+        // join in order to prevent Hibernate
         // to use an inner join instead.
         // see https://hibernate.atlassian.net/browse/HHH-12999.
         if (isLeafProperty && !isForSelection && !attribute.isCollection()) {
             return false;
         }
 
-        Class<? extends Annotation> associationAnnotation = ASSOCIATION_TYPES.get(attribute.getPersistentAttributeType());
+        Class<? extends Annotation> associationAnnotation = ASSOCIATION_TYPES
+                .get(attribute.getPersistentAttributeType());
 
         if (associationAnnotation == null) {
             return true;
@@ -353,21 +375,21 @@ public class JpaSpecificationExecutorWithProjectionImpl<T, ID extends Serializab
         }
 
         Join<?, ?> ret = from.join(attribute, JoinType.LEFT);
-        if(!hasAlias(root, attribute)){        
-          ret.alias(attribute);
+        if (!hasAlias(root, attribute)) {
+            ret.alias(attribute);
         }
-        
+
         return ret;
     }
-    
-    private static boolean hasAlias(From<?, ?> from, String alias){
-      for (Join<?, ?> join : from.getJoins()) {
-        if(alias.equals(join.getAlias()) || hasAlias(join, alias)){
-          return true;
+
+    private static boolean hasAlias(From<?, ?> from, String alias) {
+        for (Join<?, ?> join : from.getJoins()) {
+            if (alias.equals(join.getAlias()) || hasAlias(join, alias)) {
+                return true;
+            }
         }
-      }
-      
-      return alias.equals(from.getAlias());
+
+        return alias.equals(from.getAlias());
     }
 
     private static boolean isAlreadyFetched(From<?, ?> from, String attribute) {

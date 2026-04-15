@@ -1,6 +1,6 @@
 package th.co.geniustree.springdata.jpa.domain;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.io.Serializable;
 
 /**
@@ -44,8 +44,10 @@ public class FormType implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof FormType)) return false;
+        if (this == o)
+            return true;
+        if (!(o instanceof FormType))
+            return false;
 
         FormType formType = (FormType) o;
 

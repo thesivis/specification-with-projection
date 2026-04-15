@@ -1,6 +1,7 @@
 package org.springframework.data.repository.query;
 
 import java.beans.PropertyDescriptor;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.util.Arrays;
@@ -23,18 +24,16 @@ import org.springframework.util.Assert;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.persistence.EntityManager;
-import javax.persistence.Id;
-import javax.persistence.Tuple;
-import javax.persistence.TypedQuery;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.From;
-import javax.persistence.criteria.JoinType;
-import javax.persistence.criteria.Root;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Id;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.From;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Root;
 import org.springframework.beans.BeanUtils;
-import org.springframework.data.mapping.PreferredConstructor;
-import org.springframework.data.mapping.model.PreferredConstructorDiscoverer;
 import th.co.geniustree.springdata.jpa.annotation.Load;
 import th.co.geniustree.springdata.jpa.repository.support.CustomSpelAwareProxyProjectionFactory.CustomDefaultProjectionInformation;
 import th.co.geniustree.springdata.jpa.repository.support.JpaSpecificationExecutorWithProjectionImpl;
@@ -57,7 +56,8 @@ public class MyResultProcessor {
 
         Assert.notNull(preparingConverter, "Preparing converter must not be null!");
 
-        ChainingConverter converter = ChainingConverter.of(type.getReturnedType(), preparingConverter).and(this.converter);
+        ChainingConverter converter = ChainingConverter.of(type.getReturnedType(), preparingConverter)
+                .and(this.converter);
 
         if (source instanceof Slice) {
             return (T) ((Slice<?>) source).map(converter::convert);
@@ -80,10 +80,8 @@ public class MyResultProcessor {
     @RequiredArgsConstructor(staticName = "of")
     private static class ChainingConverter implements Converter<Object, Object> {
 
-        private final @NonNull
-        Class<?> targetType;
-        private final @NonNull
-        Converter<Object, Object> delegate;
+        private final @NonNull Class<?> targetType;
+        private final @NonNull Converter<Object, Object> delegate;
 
         /**
          * Returns a new {@link ChainingConverter} that hands the elements
@@ -107,7 +105,9 @@ public class MyResultProcessor {
 
         /*
          * (non-Javadoc)
-         * @see org.springframework.core.convert.converter.Converter#convert(java.lang.Object)
+         *
+         * @see org.springframework.core.convert.converter.Converter#convert(java.lang.
+         * Object)
          */
         @Nullable
         @Override
@@ -128,20 +128,16 @@ public class MyResultProcessor {
     @RequiredArgsConstructor
     private static class ProjectingConverter implements Converter<Object, Object> {
 
-        private final @NonNull
-        ReturnTypeWarpper type;
-        private final @NonNull
-        ProjectionFactory factory;
-        private final @NonNull
-        ConversionService conversionService;
-        private final @NonNull
-        EntityManager entityManager;
+        private final @NonNull ReturnTypeWarpper type;
+        private final @NonNull ProjectionFactory factory;
+        private final @NonNull ConversionService conversionService;
+        private final @NonNull EntityManager entityManager;
 
         /**
          * Creates a new {@link ProjectingConverter} for the given
-         * {@link ReturnedType} and {@link ProjectionFactory}.
+         * {@link ReturnTypeWarpper} and {@link ProjectionFactory}.
          *
-         * @param type must not be {@literal null}.
+         * @param type    must not be {@literal null}.
          * @param factory must not be {@literal null}.
          */
         ProjectingConverter(ReturnTypeWarpper type, ProjectionFactory factory, EntityManager entityManager) {
@@ -150,7 +146,7 @@ public class MyResultProcessor {
 
         /**
          * Creates a new {@link ProjectingConverter} for the given
-         * {@link ReturnedType}.
+         * {@link ReturnTypeWarpper}.
          *
          * @param type must not be {@literal null}.
          * @return
@@ -170,8 +166,21 @@ public class MyResultProcessor {
                     try {
                         Object aux = property.getReadMethod().invoke(ret);
                         if (aux == null) {
-                            Object parameter = instances.get(property.getPropertyType().getConstructors()[0].getParameters()[0].getType().getName());
-                            aux = property.getPropertyType().getConstructor(parameter.getClass()).newInstance(parameter);
+                            // Try no-arg constructor first (works for static inner classes and regular
+                            // classes)
+                            try {
+                                Constructor<?> ctor = property.getPropertyType().getDeclaredConstructor();
+                                ctor.setAccessible(true);
+                                aux = ctor.newInstance();
+                            } catch (NoSuchMethodException e) {
+                                // Fall back: non-static inner class needs enclosing instance
+                                Object parameter = instances
+                                        .get(property.getPropertyType().getConstructors()[0].getParameters()[0]
+                                                .getType()
+                                                .getName());
+                                aux = property.getPropertyType().getConstructor(parameter.getClass())
+                                        .newInstance(parameter);
+                            }
                             instances.put(aux.getClass().getName(), aux);
                             property.getWriteMethod().invoke(ret, aux);
                         }
@@ -187,7 +196,9 @@ public class MyResultProcessor {
 
         /*
          * (non-Javadoc)
-         * @see org.springframework.core.convert.converter.Converter#convert(java.lang.Object)
+         *
+         * @see org.springframework.core.convert.converter.Converter#convert(java.lang.
+         * Object)
          */
         @Nullable
         @Override
@@ -199,7 +210,9 @@ public class MyResultProcessor {
                 return factory.createProjection(targetType, getProjectionTarget(source));
             }
 
-            PreferredConstructor<?, ?> constructor = PreferredConstructorDiscoverer.discover(targetType);
+            // Use standard reflection to find a no-arg constructor instead of removed
+            // PreferredConstructorDiscoverer
+            Constructor<?> constructor = findDefaultConstructor(targetType);
 
             if (constructor == null) {
                 return Collections.emptyList();
@@ -207,16 +220,19 @@ public class MyResultProcessor {
 
             Map<String, Object> src = (Map<String, Object>) source;
             Object id = null;
-            Optional<Field> fId = Arrays.stream(targetType.getDeclaredFields()).filter(f -> f.getAnnotation(Id.class) != null).findFirst();
+            Optional<Field> fId = Arrays.stream(targetType.getDeclaredFields())
+                    .filter(f -> f.getAnnotation(Id.class) != null).findFirst();
             if (fId.isPresent()) {
                 id = src.get(fId.get().getName());
             }
 
             try {
-                Object ret = constructor.getConstructor().newInstance();
+                constructor.setAccessible(true);
+                Object ret = constructor.newInstance();
                 Map<String, Object> instances = new HashMap<>();
                 instances.put(ret.getClass().getName(), ret);
-                CustomDefaultProjectionInformation information = (CustomDefaultProjectionInformation) factory.getProjectionInformation(targetType);
+                CustomDefaultProjectionInformation information = (CustomDefaultProjectionInformation) factory
+                        .getProjectionInformation(targetType);
                 Map<String, PropertyDescriptor> mapped = type.getMappedProperties();
                 for (String key : src.keySet()) {
                     PropertyDescriptor prop = mapped.get(key);
@@ -238,16 +254,20 @@ public class MyResultProcessor {
                             join = join.join(vet[i], JoinType.INNER);
                         }
 
-                        ReturnTypeWarpper returnedType = ReturnTypeWarpper.of(projection, type.getDomainType(), factory);
+                        ReturnTypeWarpper returnedType = ReturnTypeWarpper.of(projection, type.getDomainType(),
+                                factory);
 
-                        JpaSpecificationExecutorWithProjectionImpl.configQuery(builder, query, join, returnedType, returnedType.getReturnedType());
+                        JpaSpecificationExecutorWithProjectionImpl.configQuery(builder, query, join, returnedType,
+                                returnedType.getReturnedType());
 
                         TypedQuery<Tuple> queryWithMetadata = this.entityManager.createQuery(query);
-                        final MyResultProcessor resultProcessor = new MyResultProcessor(factory, returnedType, entityManager);
+                        final MyResultProcessor resultProcessor = new MyResultProcessor(factory, returnedType,
+                                entityManager);
                         List l = queryWithMetadata.getResultList();
                         final List resultList = resultProcessor.processResult(l, new TupleConverter(returnedType));
 
-                        BeanUtils.getPropertyDescriptor(targetType, field.getName()).getWriteMethod().invoke(ret, resultList);
+                        BeanUtils.getPropertyDescriptor(targetType, field.getName()).getWriteMethod().invoke(ret,
+                                resultList);
                     } else {
                         throw new RuntimeException("Configure the @Id field!");
                     }
@@ -255,6 +275,30 @@ public class MyResultProcessor {
                 return ret;
             } catch (Exception ex) {
                 Logger.getLogger(MyResultProcessor.class.getName()).log(Level.SEVERE, null, ex);
+                return null;
+            }
+        }
+
+        /**
+         * Finds the default (no-arg) constructor for the given type.
+         * Replaces the removed PreferredConstructorDiscoverer from Spring Data 2.x.
+         */
+        private static Constructor<?> findDefaultConstructor(Class<?> type) {
+            try {
+                return type.getDeclaredConstructor();
+            } catch (NoSuchMethodException e) {
+                // Try to find any constructor
+                Constructor<?>[] constructors = type.getDeclaredConstructors();
+                if (constructors.length > 0) {
+                    // Return the first constructor with least parameters
+                    Constructor<?> best = constructors[0];
+                    for (Constructor<?> c : constructors) {
+                        if (c.getParameterCount() < best.getParameterCount()) {
+                            best = c;
+                        }
+                    }
+                    return best;
+                }
                 return null;
             }
         }

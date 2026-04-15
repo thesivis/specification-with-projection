@@ -13,7 +13,7 @@ public class ClassDocumentParent {
     private ParentDTO parent;
 
     @Data
-    public class ParentDTO {
+    public static class ParentDTO {
         private Long id;
         private String description;
     }
